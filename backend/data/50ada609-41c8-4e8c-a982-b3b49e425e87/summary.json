@@ -1,0 +1,100 @@
+{
+  "run_id": "50ada609-41c8-4e8c-a982-b3b49e425e87",
+  "threshold": 1.5,
+  "counts": {
+    "total": 299,
+    "active": 294,
+    "non_active": 5
+  },
+  "clusters": [
+    {
+      "id": "10",
+      "size": 42
+    },
+    {
+      "id": "11",
+      "size": 29
+    },
+    {
+      "id": "12",
+      "size": 10
+    },
+    {
+      "id": "20",
+      "size": 39
+    },
+    {
+      "id": "21",
+      "size": 14
+    },
+    {
+      "id": "22",
+      "size": 32
+    },
+    {
+      "id": "30",
+      "size": 30
+    },
+    {
+      "id": "31",
+      "size": 67
+    },
+    {
+      "id": "32",
+      "size": 31
+    }
+  ],
+  "artifacts": {
+    "active_excel": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/active.xlsx",
+    "non_active_excel": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/non_active.xlsx",
+    "cluster_excels": {
+      "10": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_10.xlsx",
+      "11": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_11.xlsx",
+      "12": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_12.xlsx",
+      "20": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_20.xlsx",
+      "21": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_21.xlsx",
+      "22": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_22.xlsx",
+      "30": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_30.xlsx",
+      "31": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_31.xlsx",
+      "32": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/clusters/cluster_32.xlsx"
+    },
+    "cluster_plots": {
+      "10": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_10.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_10.png"
+      },
+      "11": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_11.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_11.png"
+      },
+      "12": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_12.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_12.png"
+      },
+      "20": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_20.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_20.png"
+      },
+      "21": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_21.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_21.png"
+      },
+      "22": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_22.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_22.png"
+      },
+      "30": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_30.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_30.png"
+      },
+      "31": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_31.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_31.png"
+      },
+      "32": {
+        "all_traces": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/all_traces_32.png",
+        "avg_trace": "/artifacts/50ada609-41c8-4e8c-a982-b3b49e425e87/plots/avg_trace_32.png"
+      }
+    }
+  }
+}

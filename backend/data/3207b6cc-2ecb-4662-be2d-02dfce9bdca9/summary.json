@@ -1,0 +1,31 @@
+{
+  "run_id": "3207b6cc-2ecb-4662-be2d-02dfce9bdca9",
+  "mode": "initial",
+  "cluster_id": null,
+  "threshold": 3.3,
+  "counts": {
+    "total": 51,
+    "active": 11,
+    "non_active": 40
+  },
+  "clusters": [
+    {
+      "id": "cluster_0",
+      "size": 6
+    },
+    {
+      "id": "cluster_1",
+      "size": 5
+    }
+  ],
+  "artifacts": {
+    "summary_json": "/artifacts/3207b6cc-2ecb-4662-be2d-02dfce9bdca9/summary.json",
+    "plots": [],
+    "cluster_excels": {
+      "cluster_0": "/artifacts/3207b6cc-2ecb-4662-be2d-02dfce9bdca9/clusters/cluster_0.xlsx",
+      "cluster_1": "/artifacts/3207b6cc-2ecb-4662-be2d-02dfce9bdca9/clusters/cluster_1.xlsx"
+    },
+    "active_excel": "/artifacts/3207b6cc-2ecb-4662-be2d-02dfce9bdca9/clusters/active.xlsx",
+    "non_active_excel": "/artifacts/3207b6cc-2ecb-4662-be2d-02dfce9bdca9/clusters/non_active.xlsx"
+  }
+}

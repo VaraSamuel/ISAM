@@ -1,0 +1,46 @@
+{
+  "run_id": "22a159bc-a633-444d-bc55-a08c1e139e08",
+  "threshold": 2.5,
+  "counts": {
+    "total": 299,
+    "active": 262,
+    "non_active": 37
+  },
+  "clusters": [
+    {
+      "id": "1",
+      "size": 76
+    },
+    {
+      "id": "2",
+      "size": 83
+    },
+    {
+      "id": "3",
+      "size": 103
+    }
+  ],
+  "artifacts": {
+    "active_excel": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/clusters/active.xlsx",
+    "non_active_excel": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/clusters/non_active.xlsx",
+    "cluster_excels": {
+      "1": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/clusters/cluster_1.xlsx",
+      "2": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/clusters/cluster_2.xlsx",
+      "3": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/clusters/cluster_3.xlsx"
+    },
+    "cluster_plots": {
+      "1": {
+        "all_traces": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/plots/all_traces_1.png",
+        "avg_trace": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/plots/avg_trace_1.png"
+      },
+      "2": {
+        "all_traces": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/plots/all_traces_2.png",
+        "avg_trace": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/plots/avg_trace_2.png"
+      },
+      "3": {
+        "all_traces": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/plots/all_traces_3.png",
+        "avg_trace": "/artifacts/22a159bc-a633-444d-bc55-a08c1e139e08/plots/avg_trace_3.png"
+      }
+    }
+  }
+}
