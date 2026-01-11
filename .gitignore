@@ -24,3 +24,5 @@ pnpm-debug.log*
 # --- OS ---
 .DS_Store
 EOF
+
+printf "\n# --- Python venvs ---\nbackend/.venv/\n.venv/\n" >> .gitignore
