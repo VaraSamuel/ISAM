@@ -1,0 +1,95 @@
+{
+  "run_id": "a8567cfc-bfc5-47c2-bd88-77176080141d",
+  "k": 4,
+  "dt": 1.0,
+  "t_start": 8.4,
+  "t_end": 20.3,
+  "activity_method": "max_z",
+  "thresholds": {
+    "z_thresh": 1.0,
+    "auc_thresh": 0.0,
+    "mean_thresh": 0.0,
+    "prom_thresh": 0.0,
+    "baseline_frac": 0.1,
+    "min_peaks": 1
+  },
+  "counts": {
+    "total": 2436,
+    "active": 2108,
+    "non_active": 328
+  },
+  "clusters": [
+    {
+      "id": "10",
+      "size": 685
+    },
+    {
+      "id": "11",
+      "size": 233
+    },
+    {
+      "id": "12",
+      "size": 160
+    },
+    {
+      "id": "13",
+      "size": 223
+    },
+    {
+      "id": "2",
+      "size": 685
+    },
+    {
+      "id": "3",
+      "size": 120
+    },
+    {
+      "id": "4",
+      "size": 2
+    }
+  ],
+  "artifacts": {
+    "active_excel": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/active.xlsx",
+    "non_active_excel": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/non_active.xlsx",
+    "cluster_excels": {
+      "2": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_2.xlsx",
+      "3": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_3.xlsx",
+      "4": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_4.xlsx",
+      "10": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_10.xlsx",
+      "11": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_11.xlsx",
+      "12": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_12.xlsx",
+      "13": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/clusters/cluster_13.xlsx"
+    },
+    "cluster_plots": {
+      "2": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_2.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_2.png"
+      },
+      "3": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_3.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_3.png"
+      },
+      "4": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_4.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_4.png"
+      },
+      "10": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_10.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_10.png"
+      },
+      "11": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_11.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_11.png"
+      },
+      "12": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_12.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_12.png"
+      },
+      "13": {
+        "all_traces": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/all_traces_13.png",
+        "avg_trace": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/plots/avg_trace_13.png"
+      }
+    },
+    "metrics_csv": "/artifacts/a8567cfc-bfc5-47c2-bd88-77176080141d/metrics.csv"
+  }
+}

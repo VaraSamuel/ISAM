@@ -1,0 +1,49 @@
+{
+  "run_id": "1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef",
+  "threshold": 2.5,
+  "dt": 1.0,
+  "t_start": 20.4,
+  "t_end": 48.1,
+  "counts": {
+    "total": 2436,
+    "active": 584,
+    "non_active": 1852
+  },
+  "clusters": [
+    {
+      "id": "1",
+      "size": 582
+    },
+    {
+      "id": "2",
+      "size": 1
+    },
+    {
+      "id": "3",
+      "size": 1
+    }
+  ],
+  "artifacts": {
+    "active_excel": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/clusters/active.xlsx",
+    "non_active_excel": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/clusters/non_active.xlsx",
+    "cluster_excels": {
+      "1": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/clusters/cluster_1.xlsx",
+      "2": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/clusters/cluster_2.xlsx",
+      "3": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/clusters/cluster_3.xlsx"
+    },
+    "cluster_plots": {
+      "1": {
+        "all_traces": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/plots/all_traces_1.png",
+        "avg_trace": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/plots/avg_trace_1.png"
+      },
+      "2": {
+        "all_traces": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/plots/all_traces_2.png",
+        "avg_trace": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/plots/avg_trace_2.png"
+      },
+      "3": {
+        "all_traces": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/plots/all_traces_3.png",
+        "avg_trace": "/artifacts/1c6edbc3-0bf4-4eed-b9bd-fd592a42c3ef/plots/avg_trace_3.png"
+      }
+    }
+  }
+}
