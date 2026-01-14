@@ -1,25 +1,32 @@
 # backend/app/main.py
+from __future__ import annotations
+
+import os
+import uuid
+import shutil
+from typing import Optional
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import os, uuid, shutil
 
 from .pipeline import create_new_run, subclassify_selected
-
 
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 
 # Comma-separated origins. Example:
 # CORS_ORIGINS="https://your-frontend.up.railway.app,http://localhost:5173"
-CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
+CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 
 app = FastAPI()
 
+# NOTE:
+# keep allow_credentials=False unless you actually use cookies/auth headers.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in CORS_ORIGINS if o.strip()],
-    allow_credentials=False,  # IMPORTANT: keep false unless you truly need cookies/auth
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -60,7 +67,10 @@ def health():
 
 @app.post("/runs")
 async def runs(
-    file: UploadFile = File(...),
+    # OPTION B: accept either multipart key: "file" (preferred) or "excel_file" (legacy)
+    file: Optional[UploadFile] = File(default=None),
+    excel_file: Optional[UploadFile] = File(default=None),
+
     k: int = Form(3),
 
     t_start: float = Form(0.0),
@@ -78,10 +88,18 @@ async def runs(
     prom_thresh: float = Form(0.0),
     min_peaks: int = Form(1),
 ):
+    upload = file or excel_file
+    if upload is None:
+        # Keep this 422 to match FastAPI validation semantics for missing required upload
+        raise HTTPException(
+            status_code=422,
+            detail="Missing file upload. Send multipart field 'file' (preferred) or 'excel_file'.",
+        )
+
     # Basic file validation to avoid confusing 422/500 behavior
-    if not file.filename:
+    if not upload.filename:
         raise HTTPException(status_code=400, detail="No file uploaded.")
-    if not file.filename.lower().endswith((".xlsx", ".xls")):
+    if not upload.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Please upload an Excel file (.xlsx/.xls).")
 
     run_id = str(uuid.uuid4())
@@ -90,7 +108,7 @@ async def runs(
 
     excel_path = os.path.join(out_dir, "input.xlsx")
     with open(excel_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        shutil.copyfileobj(upload.file, f)
 
     return create_new_run(
         excel_path=excel_path,
