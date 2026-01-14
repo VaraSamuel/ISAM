@@ -1,32 +1,29 @@
 # backend/app/main.py
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os, uuid, shutil
-from typing import Optional
 
 from .pipeline import create_new_run, subclassify_selected
 
+
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 
-# Allow comma-separated origins via env, default dev origins
-CORS_ORIGIN = os.environ.get(
-    "CORS_ORIGIN",
-    "http://localhost:5173,http://127.0.0.1:5173",
-)
-ALLOW_ORIGINS = [o.strip() for o in CORS_ORIGIN.split(",") if o.strip()]
+# Comma-separated origins. Example:
+# CORS_ORIGINS="https://your-frontend.up.railway.app,http://localhost:5173"
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOW_ORIGINS if ALLOW_ORIGINS else ["*"],
-    allow_credentials=True,
+    allow_origins=[o.strip() for o in CORS_ORIGINS if o.strip()],
+    allow_credentials=False,  # IMPORTANT: keep false unless you truly need cookies/auth
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-from fastapi.staticfiles import StaticFiles
 os.makedirs(DATA_DIR, exist_ok=True)
 app.mount("/artifacts", StaticFiles(directory=DATA_DIR), name="artifacts")
 
@@ -56,14 +53,14 @@ def _run_dir(run_id: str) -> str:
     return os.path.join(DATA_DIR, run_id)
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.post("/runs")
 async def runs(
-    # Accept BOTH keys:
-    # - frontend currently sends "excel_file"
-    # - older curl examples often send "file"
-    excel_file: Optional[UploadFile] = File(default=None),
-    file: Optional[UploadFile] = File(default=None),
-
+    file: UploadFile = File(...),
     k: int = Form(3),
 
     t_start: float = Form(0.0),
@@ -81,12 +78,11 @@ async def runs(
     prom_thresh: float = Form(0.0),
     min_peaks: int = Form(1),
 ):
-    up = excel_file or file
-    if up is None:
-        raise HTTPException(
-            status_code=422,
-            detail="Missing uploaded file. Send multipart field 'excel_file' (frontend) or 'file' (curl).",
-        )
+    # Basic file validation to avoid confusing 422/500 behavior
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded.")
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Please upload an Excel file (.xlsx/.xls).")
 
     run_id = str(uuid.uuid4())
     out_dir = _run_dir(run_id)
@@ -94,7 +90,7 @@ async def runs(
 
     excel_path = os.path.join(out_dir, "input.xlsx")
     with open(excel_path, "wb") as f:
-        shutil.copyfileobj(up.file, f)
+        shutil.copyfileobj(file.file, f)
 
     return create_new_run(
         excel_path=excel_path,
@@ -122,6 +118,8 @@ async def runs(
 @app.post("/runs/subclassify")
 async def subclassify(req: SubclassifyRequest):
     out_dir = _run_dir(req.run_id)
+    if not os.path.isdir(out_dir):
+        raise HTTPException(status_code=404, detail=f"Run not found: {req.run_id}")
 
     return subclassify_selected(
         out_dir=out_dir,

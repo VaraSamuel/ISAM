@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
 
 export function artifactUrl(path) {
   if (!path) return "";
@@ -21,7 +21,10 @@ async function asJson(res) {
 
 export async function createRun(file, k, opts = {}) {
   const fd = new FormData();
-  fd.append("excel_file", file);
+
+  // IMPORTANT: backend expects field name "file"
+  fd.append("file", file);
+
   fd.append("k", String(k));
 
   fd.append("t_start", String(opts.t_start ?? 0.0));
@@ -29,13 +32,14 @@ export async function createRun(file, k, opts = {}) {
   fd.append("dt", String(opts.dt ?? 1.0));
 
   fd.append("activity_method", String(opts.activity_method ?? "z_duration"));
+  fd.append("baseline_frac", String(opts.baseline_frac ?? 0.1));
+
   fd.append("z_thresh", String(opts.z_thresh ?? 2.5));
   fd.append("min_above_sec", String(opts.min_above_sec ?? 10.0));
 
   fd.append("auc_thresh", String(opts.auc_thresh ?? 0.0));
   fd.append("mean_thresh", String(opts.mean_thresh ?? 0.0));
   fd.append("prom_thresh", String(opts.prom_thresh ?? 0.0));
-  fd.append("baseline_frac", String(opts.baseline_frac ?? 0.1));
   fd.append("min_peaks", String(opts.min_peaks ?? 1));
 
   const res = await fetch(`${API_BASE}/runs`, { method: "POST", body: fd });
@@ -53,13 +57,14 @@ export async function subclassifyMany(run_id, selected_clusters, k, opts = {}) {
     dt: opts.dt ?? 1.0,
 
     activity_method: opts.activity_method ?? "z_duration",
+    baseline_frac: opts.baseline_frac ?? 0.1,
+
     z_thresh: opts.z_thresh ?? 2.5,
     min_above_sec: opts.min_above_sec ?? 10.0,
 
     auc_thresh: opts.auc_thresh ?? 0.0,
     mean_thresh: opts.mean_thresh ?? 0.0,
     prom_thresh: opts.prom_thresh ?? 0.0,
-    baseline_frac: opts.baseline_frac ?? 0.1,
     min_peaks: opts.min_peaks ?? 1,
   };
 
