@@ -2,50 +2,30 @@ import React, { useMemo } from "react";
 import { artifactUrl } from "../api";
 
 function explainResult(result) {
-  const {
-    counts,
-    k,
-    t_start,
-    t_end,
-    dt,
-    activity_method,
-    thresholds,
-  } = result;
-
-  const m = (activity_method || "max_z").toLowerCase();
+  const { counts, k, t_start, t_end, dt, activity_method, thresholds } = result;
+  const m = (activity_method || "z_duration").toLowerCase();
   const w = `${Number(t_start).toFixed(1)}–${Number(t_end).toFixed(1)}s (dt=${dt})`;
 
   const s = [];
-  s.push(
-    `We analyzed ${counts.total} neurons in the time window ${w}.`
-  );
-  s.push(
-    `Using method “${activity_method}”, we labeled ${counts.active} as active and ${counts.non_active} as non-active.`
-  );
+  s.push(`We analyzed ${counts.total} neurons in the time window ${w}.`);
+  s.push(`We labeled ${counts.active} as active and ${counts.non_active} as non-active before clustering.`);
 
-  if (m === "max_z") {
-    s.push(`Criterion: max_z ≥ ${Number(thresholds?.z_thresh ?? 0).toFixed(2)} (computed within the window).`);
-  } else if (m === "auc") {
-    s.push(`Criterion: AUC ≥ ${Number(thresholds?.auc_thresh ?? 0).toFixed(2)} after baseline subtraction.`);
-  } else if (m === "mean_over_baseline") {
-    s.push(`Criterion: mean_over_baseline ≥ ${Number(thresholds?.mean_thresh ?? 0).toFixed(2)} after baseline subtraction.`);
-  } else if (m === "prominence") {
+  if (m === "z_duration") {
     s.push(
-      `Criterion: prominence ≥ ${Number(thresholds?.prom_thresh ?? 0).toFixed(2)} with ≥ ${Number(thresholds?.min_peaks ?? 1)} peak(s).`
+      `Rule: z(t) ≥ ${Number(thresholds?.z_thresh ?? 0).toFixed(2)} continuously for ≥ ${Number(
+        thresholds?.min_above_sec ?? 0
+      ).toFixed(1)}s.`
     );
-  } else if (m === "composite") {
-    s.push(
-      `Composite used OR logic across thresholds (z, AUC, mean, prominence) to catch transient + sustained responders.`
-    );
+  } else {
+    s.push(`Method: ${activity_method}.`);
   }
 
-  s.push(`We then clustered active traces into k=${k} groups and generated per-cluster plots + Excel exports.`);
+  s.push(`Then we clustered active traces into k=${k} groups and generated plots + Excel exports.`);
   return s;
 }
 
 export default function Results({ result, loading, selected, setSelected, onSubclassifySelected }) {
   const { run_id, counts, clusters, artifacts, activity_method, thresholds, t_start, t_end, dt } = result;
-
   const explanation = useMemo(() => explainResult(result), [result]);
 
   return (
@@ -62,15 +42,14 @@ export default function Results({ result, loading, selected, setSelected, onSubc
       </div>
 
       <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
-        thresholds: z={thresholds?.z_thresh} | auc={thresholds?.auc_thresh} | mean={thresholds?.mean_thresh} | prom={thresholds?.prom_thresh} | baseline={thresholds?.baseline_frac} | min_peaks={thresholds?.min_peaks}
+        thresholds: z={thresholds?.z_thresh} | min_above_sec={thresholds?.min_above_sec} | auc={thresholds?.auc_thresh} | mean={thresholds?.mean_thresh} | prom={thresholds?.prom_thresh} | baseline={thresholds?.baseline_frac} | min_peaks={thresholds?.min_peaks}
       </div>
 
-      {/* NEW: explanation paragraph */}
       <div className="narrativeBox" style={{ marginTop: 12 }}>
         <div className="narrativeTitle">What happened?</div>
         <ul className="narrativeList">
-          {explanation.map((s, i) => (
-            <li key={i}>{s}</li>
+          {explanation.map((x, i) => (
+            <li key={i}>{x}</li>
           ))}
         </ul>
       </div>

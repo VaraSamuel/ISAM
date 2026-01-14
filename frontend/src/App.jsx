@@ -13,48 +13,26 @@ function describeRun({
   k,
   activityMethod,
   zThresh,
-  aucThresh,
-  meanThresh,
-  promThresh,
-  baselineFrac,
-  minPeaks,
+  minAboveSec,
 }) {
   const w = `${Number(tStart).toFixed(1)}–${Number(tEnd).toFixed(1)}s (dt=${dt})`;
-  const m = (activityMethod || "max_z").toLowerCase();
+  const m = (activityMethod || "z_duration").toLowerCase();
 
   const lines = [];
-  lines.push(
-    `We slice each neuron trace to ${w}.`
-  );
+  lines.push(`We slice each neuron trace to ${w}.`);
 
-  if (m === "max_z") {
+  if (m === "z_duration") {
     lines.push(
-      `We compute a window-relative z-score and label a neuron active if max_z ≥ ${Number(zThresh).toFixed(2)}.`
+      `A neuron is active only if z(t) ≥ ${Number(zThresh).toFixed(
+        2
+      )} for at least ${Number(minAboveSec).toFixed(1)} seconds (continuous).`
     );
-  } else if (m === "auc") {
-    lines.push(
-      `We subtract a baseline (first ${Math.round(Number(baselineFrac) * 100)}% of the window) and label active if AUC ≥ ${Number(aucThresh).toFixed(2)}.`
-    );
-  } else if (m === "mean_over_baseline") {
-    lines.push(
-      `We subtract a baseline (first ${Math.round(Number(baselineFrac) * 100)}% of the window) and label active if mean_over_baseline ≥ ${Number(meanThresh).toFixed(2)}.`
-    );
-  } else if (m === "prominence") {
-    lines.push(
-      `We subtract a baseline and label active if peak prominence ≥ ${Number(promThresh).toFixed(2)} with at least ${Number(minPeaks)} peak(s).`
-    );
-  } else if (m === "composite") {
-    lines.push(
-      `Composite marks a neuron active if it passes ANY rule: max_z ≥ ${Number(zThresh).toFixed(2)}, OR AUC ≥ ${Number(aucThresh).toFixed(2)}, OR mean_over_baseline ≥ ${Number(meanThresh).toFixed(2)}, OR prominence ≥ ${Number(promThresh).toFixed(2)} (and peaks ≥ ${Number(minPeaks)}).`
-    );
+    lines.push(`This active/non-active filter is applied before clustering.`);
   } else {
-    lines.push(`We label active neurons using the selected method: ${activityMethod}.`);
+    lines.push(`We label active neurons using method: ${activityMethod}.`);
   }
 
-  lines.push(
-    `Then we cluster active traces into k=${k} groups based on the selected time window.`
-  );
-
+  lines.push(`Then we cluster only the active traces into k=${k} groups.`);
   return lines;
 }
 
@@ -69,9 +47,12 @@ export default function App() {
   const [tEnd, setTEnd] = useState(10.0);
   const [dt, setDt] = useState(1.0);
 
-  // activity method + thresholds
-  const [activityMethod, setActivityMethod] = useState("max_z");
+  // activity detection
+  const [activityMethod, setActivityMethod] = useState("z_duration");
   const [zThresh, setZThresh] = useState(2.5);
+  const [minAboveSec, setMinAboveSec] = useState(10.0);
+
+  // keep existing knobs (optional)
   const [aucThresh, setAucThresh] = useState(0.0);
   const [meanThresh, setMeanThresh] = useState(0.0);
   const [promThresh, setPromThresh] = useState(0.0);
@@ -85,7 +66,6 @@ export default function App() {
   const [selected, setSelected] = useState({});
 
   const maxSeconds = 60;
-
   const presets = [
     [0, 1],
     [1, 10],
@@ -102,13 +82,9 @@ export default function App() {
         k,
         activityMethod,
         zThresh,
-        aucThresh,
-        meanThresh,
-        promThresh,
-        baselineFrac,
-        minPeaks,
+        minAboveSec,
       }),
-    [tStart, tEnd, dt, k, activityMethod, zThresh, aucThresh, meanThresh, promThresh, baselineFrac, minPeaks]
+    [tStart, tEnd, dt, k, activityMethod, zThresh, minAboveSec]
   );
 
   async function runInitial() {
@@ -123,6 +99,8 @@ export default function App() {
 
         activity_method: activityMethod,
         z_thresh: zThresh,
+        min_above_sec: minAboveSec,
+
         auc_thresh: aucThresh,
         mean_thresh: meanThresh,
         prom_thresh: promThresh,
@@ -153,6 +131,8 @@ export default function App() {
 
         activity_method: activityMethod,
         z_thresh: zThresh,
+        min_above_sec: minAboveSec,
+
         auc_thresh: aucThresh,
         mean_thresh: meanThresh,
         prom_thresh: promThresh,
@@ -280,7 +260,7 @@ export default function App() {
               disabled={loading}
             />
             <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
-              If each column is already 1 second, keep dt = 1. If sampled at 10Hz, dt = 0.1.
+              If each column is 1 second, keep dt = 1. If sampled at 10Hz, dt = 0.1.
             </div>
           </div>
         </div>
@@ -290,7 +270,7 @@ export default function App() {
           <div className="section-title">Activity Detection</div>
 
           <div className="activityGrid">
-            {/* LEFT: controls */}
+            {/* Controls */}
             <div className="activityControls">
               <div className="row2">
                 <div>
@@ -303,6 +283,7 @@ export default function App() {
                     className="textInput"
                     disabled={loading}
                   >
+                    <option value="z_duration">Threshold + Duration (z_duration)</option>
                     <option value="max_z">Window Z-score max (max_z)</option>
                     <option value="auc">Area under curve (auc)</option>
                     <option value="mean_over_baseline">Mean over baseline</option>
@@ -328,18 +309,37 @@ export default function App() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 12 }}>
-                <ThresholdSlider
-                  label="Z threshold (max_z)"
-                  value={zThresh}
-                  setValue={setZThresh}
-                  min={0}
-                  max={10}
-                  step={0.1}
-                  disabled={loading}
-                />
+              {/* z threshold + min duration */}
+              <div style={{ marginTop: 12 }} className="row2">
+                <div>
+                  <ThresholdSlider
+                    label="Z threshold (z_thresh)"
+                    value={zThresh}
+                    setValue={setZThresh}
+                    min={0}
+                    max={10}
+                    step={0.1}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
+                    Min duration above z (sec)
+                  </div>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={minAboveSec}
+                    onChange={(e) => setMinAboveSec(Number(e.target.value) || 0)}
+                    className="textInput"
+                    disabled={loading}
+                  />
+                </div>
               </div>
 
+              {/* optional thresholds */}
               <div style={{ marginTop: 12 }} className="row2">
                 <div>
                   <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
@@ -399,17 +399,13 @@ export default function App() {
                   />
                 </div>
               </div>
-
-              <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-                Tip: For “composite”, set thresholds modestly (e.g., z=2.5, prominence&gt;0, mean&gt;0, auc&gt;0)
-                to catch both transient and sustained activity.
-              </div>
             </div>
 
-            {/* RIGHT: explanation sidebar */}
+            {/* Help panel */}
             <MetricHelp
               activityMethod={activityMethod}
               zThresh={zThresh}
+              minAboveSec={minAboveSec}
               aucThresh={aucThresh}
               meanThresh={meanThresh}
               promThresh={promThresh}
@@ -437,7 +433,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Auto-generated explanation (below) */}
         <div className="narrativeBox">
           <div className="narrativeTitle">What will happen when you run?</div>
           <ul className="narrativeList">
@@ -460,21 +455,20 @@ export default function App() {
         />
       )}
 
-      {result && (
-        <footer className="footer">
-          <div className="footer-line">
-            Developed by <span className="footer-strong">Samuel Vara</span>,{" "}
-            {LAB_URL ? (
-              <a className="footer-link" href={LAB_URL} target="_blank" rel="noreferrer">
-                The De Lartigue Lab
-              </a>
-            ) : (
-              <span className="footer-strong">The De Lartigue Lab</span>
-            )}
-          </div>
-          <div className="footer-sub">© {year}</div>
-        </footer>
-      )}
+      {/* Always show footer */}
+      <footer className="footer">
+        <div className="footer-line">
+          Developed by <span className="footer-strong">Samuel Vara</span>,{" "}
+          {LAB_URL ? (
+            <a className="footer-link" href={LAB_URL} target="_blank" rel="noreferrer">
+              The De Lartigue Lab
+            </a>
+          ) : (
+            <span className="footer-strong">The De Lartigue Lab</span>
+          )}
+        </div>
+        <div className="footer-sub">© {year}</div>
+      </footer>
     </div>
   );
 }

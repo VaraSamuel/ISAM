@@ -1,0 +1,42 @@
+{
+  "k": 3,
+  "dt": 1.0,
+  "t_start": 0.0,
+  "t_end": 36.1,
+  "activity_method": "z_duration",
+  "z_thresh": 0.8,
+  "min_above_sec": 10.0,
+  "auc_thresh": 0.0,
+  "mean_thresh": 0.0,
+  "prom_thresh": 0.0,
+  "baseline_frac": 0.1,
+  "min_peaks": 1,
+  "active_idx": [
+    843,
+    914,
+    1195,
+    1214,
+    1470,
+    1505,
+    1582,
+    1757,
+    1847
+  ],
+  "clusters": {
+    "1": [
+      843,
+      1470
+    ],
+    "2": [
+      914,
+      1195,
+      1505,
+      1582,
+      1757,
+      1847
+    ],
+    "3": [
+      1214
+    ]
+  }
+}

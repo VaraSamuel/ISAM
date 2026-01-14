@@ -1,0 +1,31 @@
+{
+  "run_id": "f241e0ff-0aaa-4d53-9ee8-2d507a779687",
+  "k": 3,
+  "dt": 1.0,
+  "t_start": 0.0,
+  "t_end": 36.1,
+  "activity_method": "z_duration",
+  "thresholds": {
+    "z_thresh": 2.5,
+    "min_above_sec": 10.0,
+    "auc_thresh": 0.0,
+    "mean_thresh": 0.0,
+    "prom_thresh": 0.0,
+    "baseline_frac": 0.1,
+    "min_peaks": 1
+  },
+  "counts": {
+    "total": 2436,
+    "active": 0,
+    "non_active": 2436
+  },
+  "clusters": [],
+  "artifacts": {
+    "active_excel": "/artifacts/f241e0ff-0aaa-4d53-9ee8-2d507a779687/clusters/active.xlsx",
+    "non_active_excel": "/artifacts/f241e0ff-0aaa-4d53-9ee8-2d507a779687/clusters/non_active.xlsx",
+    "cluster_excels": {},
+    "cluster_plots": {},
+    "metrics_csv": "/artifacts/f241e0ff-0aaa-4d53-9ee8-2d507a779687/metrics.csv"
+  },
+  "notes": []
+}
