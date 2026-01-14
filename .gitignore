@@ -1,28 +1,16 @@
 cat > .gitignore << 'EOF'
-# --- Python ---
-.venv/
+# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-.DS_Store
 
-# --- Node ---
-frontend/node_modules/
-frontend/dist/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# Virtualenv
+venv/
+backend/venv/
 
-# --- Env ---
-.env
-.env.local
-.env.*.local
+# Runtime artifacts / data
+backend/data/
+data/
 
-# --- OS ---
+# OS
 .DS_Store
 EOF
-
-printf "\n# --- Python venvs ---\nbackend/.venv/\n.venv/\n" >> .gitignore
