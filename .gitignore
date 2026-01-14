@@ -14,3 +14,9 @@ data/
 # OS
 .DS_Store
 EOF
+
+# Local envs / deps
+.venv/
+backend/.venv/
+node_modules/
+frontend/node_modules/
