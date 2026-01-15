@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from "react";
+// frontend/src/App.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import ThresholdSlider from "./components/ThresholdSlider.jsx";
 import Results from "./components/Results.jsx";
 import MetricHelp from "./components/MetricHelp.jsx";
 import { createRun, subclassifyMany } from "./api";
 
 const LAB_URL = import.meta.env.VITE_LAB_URL || "";
+
+// ✅ NEW: force slider to allow at least this many seconds
+const UI_MIN_MAX_SECONDS = 600;
 
 function describeRun({
   tStart,
@@ -47,12 +51,15 @@ export default function App() {
   const [tEnd, setTEnd] = useState(10.0);
   const [dt, setDt] = useState(1.0);
 
+  // ✅ NEW: default slider max to 600 so user can always slide up to 600
+  const [tMax, setTMax] = useState(UI_MIN_MAX_SECONDS);
+
   // activity detection
   const [activityMethod, setActivityMethod] = useState("z_duration");
   const [zThresh, setZThresh] = useState(2.5);
   const [minAboveSec, setMinAboveSec] = useState(10.0);
 
-  // keep existing knobs (optional)
+  // other thresholds
   const [aucThresh, setAucThresh] = useState(0.0);
   const [meanThresh, setMeanThresh] = useState(0.0);
   const [promThresh, setPromThresh] = useState(0.0);
@@ -65,7 +72,6 @@ export default function App() {
   // selections for subclassify
   const [selected, setSelected] = useState({});
 
-  const maxSeconds = 60;
   const presets = [
     [0, 1],
     [1, 10],
@@ -87,6 +93,19 @@ export default function App() {
     [tStart, tEnd, dt, k, activityMethod, zThresh, minAboveSec]
   );
 
+  // ✅ IMPORTANT:
+  // We now clamp tStart/tEnd to the UI max (>=600) not the data max,
+  // because you explicitly want the slider to reach 600.
+  useEffect(() => {
+    const max = Number.isFinite(tMax) && tMax > 0 ? tMax : UI_MIN_MAX_SECONDS;
+    setTStart((prev) => Math.min(Math.max(0, prev), max));
+    setTEnd((prev) => Math.min(Math.max(0, prev), max));
+  }, [tMax]);
+
+  useEffect(() => {
+    if (tEnd < tStart) setTEnd(tStart);
+  }, [tStart, tEnd]);
+
   async function runInitial() {
     if (!file) return;
     setError("");
@@ -107,6 +126,18 @@ export default function App() {
         baseline_frac: baselineFrac,
         min_peaks: minPeaks,
       });
+
+      // ✅ NEW: keep UI max at least 600, but if backend data is longer, extend beyond 600
+      const backendMax = Number(r?.t_max_full ?? r?.t_max_window ?? 0) || 0;
+      const newUiMax = Math.max(UI_MIN_MAX_SECONDS, backendMax || 0);
+      setTMax(newUiMax);
+
+      // Clamp current window to the UI max (not backend max)
+      const startClamped = Math.min(Math.max(0, tStart), newUiMax);
+      const endClamped = Math.min(Math.max(startClamped, tEnd), newUiMax);
+      setTStart(startClamped);
+      setTEnd(endClamped);
+
       setResult(r);
       setSelected({});
     } catch (e) {
@@ -139,6 +170,11 @@ export default function App() {
         baseline_frac: baselineFrac,
         min_peaks: minPeaks,
       });
+
+      const backendMax = Number(r?.t_max_full ?? r?.t_max_window ?? 0) || 0;
+      const newUiMax = Math.max(UI_MIN_MAX_SECONDS, backendMax || 0);
+      setTMax(newUiMax);
+
       setResult(r);
       setSelected({});
     } catch (e) {
@@ -149,6 +185,9 @@ export default function App() {
   }
 
   const year = new Date().getFullYear();
+
+  // ✅ slider max is always at least 600
+  const maxSeconds = Number.isFinite(tMax) && tMax > 0 ? tMax : UI_MIN_MAX_SECONDS;
 
   return (
     <div className="container">
@@ -198,7 +237,7 @@ export default function App() {
           </div>
 
           <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
-            Start (seconds)
+            Start (seconds) <span className="mono">(max {maxSeconds.toFixed(1)}s)</span>
           </div>
           <input
             type="range"
@@ -214,7 +253,7 @@ export default function App() {
           />
 
           <div className="muted" style={{ fontSize: 13, marginTop: 10, marginBottom: 6 }}>
-            End (seconds)
+            End (seconds) <span className="mono">(max {maxSeconds.toFixed(1)}s)</span>
           </div>
           <input
             type="range"
@@ -236,14 +275,29 @@ export default function App() {
                 className="btn-secondary"
                 type="button"
                 onClick={() => {
-                  setTStart(a);
-                  setTEnd(b);
+                  const max = maxSeconds;
+                  const aa = Math.min(Math.max(0, a), max);
+                  const bb = Math.min(Math.max(aa, b), max);
+                  setTStart(aa);
+                  setTEnd(bb);
                 }}
                 disabled={loading}
               >
                 {a}–{b}s
               </button>
             ))}
+
+            <button
+              className="btn-secondary"
+              type="button"
+              onClick={() => {
+                setTStart(0);
+                setTEnd(maxSeconds);
+              }}
+              disabled={loading}
+            >
+              Full (0–{maxSeconds.toFixed(0)}s)
+            </button>
           </div>
 
           <div style={{ marginTop: 12 }}>
@@ -263,6 +317,13 @@ export default function App() {
               If each column is 1 second, keep dt = 1. If sampled at 10Hz, dt = 0.1.
             </div>
           </div>
+
+          {result?.t_max_full != null && (
+            <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+              Detected trace length: ~{Number(result.t_max_full).toFixed(2)}s (full data). UI slider max is{" "}
+              {maxSeconds.toFixed(0)}s.
+            </div>
+          )}
         </div>
 
         {/* Activity Detection + Help Sidebar */}
@@ -270,7 +331,6 @@ export default function App() {
           <div className="section-title">Activity Detection</div>
 
           <div className="activityGrid">
-            {/* Controls */}
             <div className="activityControls">
               <div className="row2">
                 <div>
@@ -309,7 +369,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* z threshold + min duration */}
               <div style={{ marginTop: 12 }} className="row2">
                 <div>
                   <ThresholdSlider
@@ -339,7 +398,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* optional thresholds */}
               <div style={{ marginTop: 12 }} className="row2">
                 <div>
                   <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
@@ -401,7 +459,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Help panel */}
             <MetricHelp
               activityMethod={activityMethod}
               zThresh={zThresh}
@@ -455,7 +512,6 @@ export default function App() {
         />
       )}
 
-      {/* Always show footer */}
       <footer className="footer">
         <div className="footer-line">
           Developed by <span className="footer-strong">Samuel Vara</span>,{" "}

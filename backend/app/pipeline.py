@@ -11,8 +11,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from sklearn.cluster import KMeans
-
 from scipy.signal import find_peaks, peak_prominences
+
+
+# Plotting long traces can get heavy; downsample for plotting only.
+MAX_PLOT_POINTS = 2000
 
 
 # -----------------------------
@@ -35,29 +38,50 @@ def _save_json(path: str, obj) -> None:
 
 
 # -----------------------------
-# Time window helper
+# Time window helper (DYNAMIC: no fixed cap)
 # -----------------------------
 def _apply_time_window(
     X: np.ndarray,
     t: np.ndarray,
     t_start: float,
     t_end: float,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, float, float]:
+    """
+    Apply a [t_start, t_end] time window, dynamically clamped to the data.
+
+    Rules:
+      - t_start >= 0
+      - if t_end is None or < 0 => t_end = t[-1]
+      - t_end <= t[-1]
+      - ensure t_end >= t_start
+      - if mask empty, return full arrays (better than empty)
+
+    Returns:
+      (Xw, tw, t_max_full, t_max_window)
+    """
     if t.size == 0:
-        return X, t
+        return X, t, 0.0, 0.0
 
-    t_start = float(max(0.0, t_start))
+    t_max_full = float(t[-1])
+
+    t_start = float(max(0.0, float(t_start)))
+
     if t_end is None or float(t_end) < 0:
-        t_end = float(t[-1])
+        t_end = t_max_full
+    else:
+        t_end = float(t_end)
+        t_end = min(t_end, t_max_full)
 
-    t_end = float(max(t_start, float(t_end)))
+    t_end = float(max(t_start, t_end))
 
     mask = (t >= t_start) & (t <= t_end)
     if not np.any(mask):
         # no overlap → return full arrays (better than empty)
-        return X, t
+        return X, t, t_max_full, t_max_full
 
-    return X[:, mask], t[mask]
+    tw = t[mask]
+    t_max_window = float(tw[-1]) if tw.size else 0.0
+    return X[:, mask], tw, t_max_full, t_max_window
 
 
 # -----------------------------
@@ -244,15 +268,28 @@ def _robust_ylim(Xc: np.ndarray) -> Tuple[float, float]:
     return 0.0, max(hi * 1.08, 1.0)
 
 
+def _downsample_for_plot(t: np.ndarray, Xc: np.ndarray, max_points: int = MAX_PLOT_POINTS) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Downsample along time axis for plotting only.
+    Keeps shapes: t_ds [T'], Xc_ds [N, T'].
+    """
+    if t.size <= max_points or Xc.shape[1] <= max_points:
+        return t, Xc
+
+    idx = np.linspace(0, t.size - 1, max_points).astype(int)
+    return t[idx], Xc[:, idx]
+
+
 def plot_all_traces_png(Xc: np.ndarray, t: np.ndarray, out_path: str, title: str) -> None:
-    y0, y1 = _robust_ylim(Xc)
+    t_plot, X_plot = _downsample_for_plot(t, Xc, max_points=MAX_PLOT_POINTS)
+    y0, y1 = _robust_ylim(X_plot)
 
     fig = plt.figure(figsize=(10, 5.5))
     ax = plt.gca()
     ax.set_facecolor("white")
 
-    for y in Xc:
-        ax.plot(t, y, linewidth=1.3, alpha=0.25)
+    for y in X_plot:
+        ax.plot(t_plot, y, linewidth=1.3, alpha=0.25)
 
     ax.set_title(title, fontsize=20, fontweight="bold", pad=10)
     ax.set_xlabel("Time (s)", fontsize=14)
@@ -265,14 +302,15 @@ def plot_all_traces_png(Xc: np.ndarray, t: np.ndarray, out_path: str, title: str
 
 
 def plot_avg_trace_png(Xc: np.ndarray, t: np.ndarray, out_path: str, title: str) -> None:
-    avg = Xc.mean(axis=0) if Xc.size else np.zeros_like(t)
-    y0, y1 = _robust_ylim(Xc)
+    t_plot, X_plot = _downsample_for_plot(t, Xc, max_points=MAX_PLOT_POINTS)
+    avg = X_plot.mean(axis=0) if X_plot.size else np.zeros_like(t_plot)
+    y0, y1 = _robust_ylim(X_plot)
 
     fig = plt.figure(figsize=(10, 5.5))
     ax = plt.gca()
     ax.set_facecolor("white")
 
-    ax.plot(t, avg, linewidth=3.2)
+    ax.plot(t_plot, avg, linewidth=3.2)
 
     ax.set_title(title, fontsize=20, fontweight="bold", pad=10)
     ax.set_xlabel("Time (s)", fontsize=14)
@@ -360,7 +398,6 @@ def _cluster_subdivide(
 
     children_keys = _make_child_keys(key, n_children)
 
-    # remove parent
     clusters = dict(clusters)
     clusters.pop(key, None)
 
@@ -468,7 +505,7 @@ def create_new_run(
     df_raw = pd.read_excel(excel_path)
 
     X_full, t_full = extract_traces_from_excel(df_raw, dt=dt)
-    Xw, tw = _apply_time_window(X_full, t_full, t_start, t_end)
+    Xw, tw, t_max_full, t_max_window = _apply_time_window(X_full, t_full, t_start, t_end)
 
     metrics = _compute_window_metrics(Xw, tw, baseline_frac=baseline_frac, min_peaks=min_peaks)
 
@@ -488,11 +525,9 @@ def create_new_run(
     active_idx = np.where(active_mask)[0]
     non_active_idx = np.where(~active_mask)[0]
 
-    # export active/non-active
     df_raw.iloc[active_idx].to_excel(os.path.join(clusters_dir, "active.xlsx"), index=False)
     df_raw.iloc[non_active_idx].to_excel(os.path.join(clusters_dir, "non_active.xlsx"), index=False)
 
-    # root clustering (SAFE if no active neurons)
     clusters = _cluster_root(X=Xw, active_idx=active_idx, k=k)
 
     cluster_excels = _export_cluster_excels(df_raw, clusters, clusters_dir, run_id) if clusters else {}
@@ -516,6 +551,11 @@ def create_new_run(
         "t_start": float(t_start),
         "t_end": float(t_end),
 
+        "t_max_full": float(t_max_full),
+        "t_max_window": float(t_max_window),
+        "T_full": int(X_full.shape[1]),
+        "T_window": int(Xw.shape[1]),
+
         "activity_method": activity_method,
         "z_thresh": float(z_thresh),
         "min_above_sec": float(min_above_sec),
@@ -537,6 +577,12 @@ def create_new_run(
         "dt": float(dt),
         "t_start": float(t_start),
         "t_end": float(t_end),
+
+        # NEW: tell frontend what the slider max should be
+        "t_max_full": float(t_max_full),
+        "t_max_window": float(t_max_window),
+        "T_full": int(X_full.shape[1]),
+        "T_window": int(Xw.shape[1]),
 
         "activity_method": activity_method,
         "thresholds": {
@@ -566,7 +612,6 @@ def create_new_run(
         "notes": [],
     }
 
-    # helpful note for z_duration if window < min_above_sec
     win_len = float(tw[-1] - tw[0]) if tw.size >= 2 else float(tw[-1]) if tw.size == 1 else 0.0
     if (activity_method or "").strip().lower() == "z_duration" and float(min_above_sec) > win_len:
         summary["notes"].append(
@@ -610,7 +655,7 @@ def subclassify_selected(
     df_raw = pd.read_excel(excel_path)
 
     X_full, t_full = extract_traces_from_excel(df_raw, dt=dt)
-    Xw, tw = _apply_time_window(X_full, t_full, t_start, t_end)
+    Xw, tw, t_max_full, t_max_window = _apply_time_window(X_full, t_full, t_start, t_end)
 
     metrics = _compute_window_metrics(Xw, tw, baseline_frac=baseline_frac, min_peaks=min_peaks)
     active_mask, max_run_sec = _active_mask_from_metrics(
@@ -635,11 +680,9 @@ def subclassify_selected(
     df_raw.iloc[active_idx].to_excel(os.path.join(clusters_dir, "active.xlsx"), index=False)
     df_raw.iloc[np.where(~active_mask)[0]].to_excel(os.path.join(clusters_dir, "non_active.xlsx"), index=False)
 
-    # If no clusters exist yet (e.g., previously 0 active), seed root clusters now
     if not clusters:
         clusters = _cluster_root(X=Xw, active_idx=active_idx, k=k)
 
-    # Subdivide selected clusters
     for key in selected_clusters:
         clusters = _cluster_subdivide(X=Xw, clusters=clusters, key=key, k=k)
 
@@ -664,6 +707,11 @@ def subclassify_selected(
         "t_start": float(t_start),
         "t_end": float(t_end),
 
+        "t_max_full": float(t_max_full),
+        "t_max_window": float(t_max_window),
+        "T_full": int(X_full.shape[1]),
+        "T_window": int(Xw.shape[1]),
+
         "activity_method": activity_method,
         "z_thresh": float(z_thresh),
         "min_above_sec": float(min_above_sec),
@@ -685,6 +733,12 @@ def subclassify_selected(
         "dt": float(dt),
         "t_start": float(t_start),
         "t_end": float(t_end),
+
+        # NEW: dynamic time info for frontend slider max
+        "t_max_full": float(t_max_full),
+        "t_max_window": float(t_max_window),
+        "T_full": int(X_full.shape[1]),
+        "T_window": int(Xw.shape[1]),
 
         "activity_method": activity_method,
         "thresholds": {
