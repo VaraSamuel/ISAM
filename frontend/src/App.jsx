@@ -27,9 +27,9 @@ function describeRun({
 
   if (m === "z_duration") {
     lines.push(
-      `A neuron is active only if z(t) ≥ ${Number(zThresh).toFixed(
+      `A neuron is active if the total time where z(t) ≥ ${Number(zThresh).toFixed(
         2
-      )} for at least ${Number(minAboveSec).toFixed(1)} seconds (continuous).`
+      )} is at least ${Number(minAboveSec).toFixed(1)} seconds (not necessarily continuous).`
     );
     lines.push(`This active/non-active filter is applied before clustering.`);
   } else {
@@ -57,7 +57,7 @@ export default function App() {
   // activity detection
   const [activityMethod, setActivityMethod] = useState("z_duration");
   const [zThresh, setZThresh] = useState(2.5);
-  const [minAboveSec, setMinAboveSec] = useState(10.0);
+  const [minAboveSec, setMinAboveSec] = useState(5.0);
 
   // other thresholds
   const [aucThresh, setAucThresh] = useState(0.0);

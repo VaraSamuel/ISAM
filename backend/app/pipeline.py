@@ -97,23 +97,45 @@ def extract_traces_from_excel(df: pd.DataFrame, dt: float = 1.0) -> Tuple[np.nda
 
 
 # -----------------------------
+# GLOBAL (whole-recording) z-score reference
+# -----------------------------
+def _compute_global_z_stats(X_full: np.ndarray, eps: float = 1e-6) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute per-neuron mean/std over the ENTIRE recording (all timepoints).
+    Returns vectors length N.
+    """
+    if X_full.size == 0:
+        return np.zeros((X_full.shape[0],), dtype=float), np.ones((X_full.shape[0],), dtype=float)
+
+    mu = X_full.mean(axis=1).astype(float)
+    sd = X_full.std(axis=1).astype(float)
+    sd = np.maximum(sd, float(eps))
+    return mu, sd
+
+
+def _zscore_global_segment(Xw: np.ndarray, mu_global: np.ndarray, sd_global: np.ndarray) -> np.ndarray:
+    """
+    Global z-score of the WINDOW segment Xw using whole-recording mu/sd.
+    """
+    return (Xw - mu_global[:, None]) / sd_global[:, None]
+
+
+# -----------------------------
 # Activity metrics
 # -----------------------------
 def _compute_window_metrics(
     Xw: np.ndarray,
     t: np.ndarray,
+    *,
+    mu_global: np.ndarray,
+    sd_global: np.ndarray,
     baseline_frac: float = 0.1,
     min_peaks: int = 1,
 ) -> Dict[str, np.ndarray]:
     """
     Compute per-cell metrics inside the window.
 
-    Returns dict of vectors length N:
-      - max_z: max window-relative z
-      - auc: integral of baseline-subtracted signal over time
-      - mean_over_baseline: mean of baseline-subtracted signal
-      - prominence: max peak prominence of baseline-subtracted signal
-      - n_peaks: number of peaks found
+    max_z is GLOBAL (whole-recording) z-score max within the window.
     """
     N, T = Xw.shape
     if T == 0:
@@ -132,9 +154,7 @@ def _compute_window_metrics(
 
     Xrel = Xw - baseline
 
-    mu = Xw.mean(axis=1, keepdims=True)
-    sigma = Xw.std(axis=1, keepdims=True) + 1e-6
-    Xz = (Xw - mu) / sigma
+    Xz = _zscore_global_segment(Xw, mu_global=mu_global, sd_global=sd_global)
     max_z = Xz.max(axis=1)
 
     auc = np.trapz(Xrel, t, axis=1)
@@ -162,36 +182,25 @@ def _compute_window_metrics(
     }
 
 
-def _max_run_sec_above_z(Xw: np.ndarray, z_thresh: float, dt: float) -> np.ndarray:
+def _total_time_sec_above_z(
+    Xw: np.ndarray,
+    z_thresh: float,
+    dt: float,
+    *,
+    mu_global: np.ndarray,
+    sd_global: np.ndarray,
+) -> np.ndarray:
     """
-    Per neuron, compute max contiguous duration (sec) where window-relative z >= z_thresh.
+    Per neuron, compute TOTAL time (sec) where GLOBAL z >= z_thresh.
+    NOT necessarily continuous. This matches your Excel logic.
     """
     N, T = Xw.shape
     if T == 0:
         return np.zeros(N, dtype=float)
 
-    mu = Xw.mean(axis=1, keepdims=True)
-    sigma = Xw.std(axis=1, keepdims=True) + 1e-6
-    Xz = (Xw - mu) / sigma
+    Xz = _zscore_global_segment(Xw, mu_global=mu_global, sd_global=sd_global)
     above = Xz >= float(z_thresh)
-
-    max_run = np.zeros(N, dtype=float)
-    step = float(dt)
-
-    for i in range(N):
-        row = above[i]
-        best = 0
-        cur = 0
-        for v in row:
-            if v:
-                cur += 1
-                if cur > best:
-                    best = cur
-            else:
-                cur = 0
-        max_run[i] = best * step
-
-    return max_run
+    return above.sum(axis=1).astype(float) * float(dt)
 
 
 def _active_mask_from_metrics(
@@ -206,10 +215,16 @@ def _active_mask_from_metrics(
     Xw: Optional[np.ndarray] = None,
     dt: float = 1.0,
     min_above_sec: float = 10.0,
+    mu_global: Optional[np.ndarray] = None,
+    sd_global: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Returns (active_mask, max_run_sec).
-    max_run_sec is computed only when needed (or for composite if enabled).
+    Returns (active_mask, duration_like_sec).
+
+    IMPORTANT:
+      - z_duration now uses TOTAL time above threshold (not necessarily continuous),
+        matching your Excel behavior.
+      - Returned duration_like_sec is total_above_sec for z_duration.
     """
     method = (activity_method or "max_z").strip().lower()
 
@@ -219,32 +234,46 @@ def _active_mask_from_metrics(
     prom = metrics["prominence"]
     n_peaks = metrics["n_peaks"]
 
-    max_run_sec = np.zeros_like(max_z, dtype=float)
+    duration_like_sec = np.zeros_like(max_z, dtype=float)
 
     if method == "z_duration":
-        if Xw is None:
-            return (max_z >= float(z_thresh)), max_run_sec
-        max_run_sec = _max_run_sec_above_z(Xw, z_thresh=float(z_thresh), dt=float(dt))
-        active = (max_z >= float(z_thresh)) & (max_run_sec >= float(min_above_sec))
-        return active, max_run_sec
+        if Xw is None or mu_global is None or sd_global is None:
+            # fallback if we can't compute time-above correctly
+            return (max_z >= float(z_thresh)), duration_like_sec
+
+        total_above_sec = _total_time_sec_above_z(
+            Xw,
+            z_thresh=float(z_thresh),
+            dt=float(dt),
+            mu_global=mu_global,
+            sd_global=sd_global,
+        )
+        active = total_above_sec >= float(min_above_sec)
+        return active, total_above_sec
 
     if method == "max_z":
-        return (max_z >= float(z_thresh)), max_run_sec
+        return (max_z >= float(z_thresh)), duration_like_sec
 
     if method == "auc":
-        return (auc >= float(auc_thresh)), max_run_sec
+        return (auc >= float(auc_thresh)), duration_like_sec
 
     if method == "mean_over_baseline":
-        return (mean_over_baseline >= float(mean_thresh)), max_run_sec
+        return (mean_over_baseline >= float(mean_thresh)), duration_like_sec
 
     if method == "prominence":
-        return ((prom >= float(prom_thresh)) & (n_peaks >= float(min_peaks))), max_run_sec
+        return ((prom >= float(prom_thresh)) & (n_peaks >= float(min_peaks))), duration_like_sec
 
     if method == "composite":
         dur_ok = np.zeros_like(max_z, dtype=bool)
-        if Xw is not None and float(min_above_sec) > 0:
-            max_run_sec = _max_run_sec_above_z(Xw, z_thresh=float(z_thresh), dt=float(dt))
-            dur_ok = (max_z >= float(z_thresh)) & (max_run_sec >= float(min_above_sec))
+        if Xw is not None and mu_global is not None and sd_global is not None and float(min_above_sec) > 0:
+            duration_like_sec = _total_time_sec_above_z(
+                Xw,
+                z_thresh=float(z_thresh),
+                dt=float(dt),
+                mu_global=mu_global,
+                sd_global=sd_global,
+            )
+            dur_ok = duration_like_sec >= float(min_above_sec)
 
         active = (
             (max_z >= float(z_thresh)) |
@@ -253,9 +282,9 @@ def _active_mask_from_metrics(
             ((prom >= float(prom_thresh)) & (n_peaks >= float(min_peaks))) |
             dur_ok
         )
-        return active, max_run_sec
+        return active, duration_like_sec
 
-    return (max_z >= float(z_thresh)), max_run_sec
+    return (max_z >= float(z_thresh)), duration_like_sec
 
 
 # -----------------------------
@@ -293,7 +322,7 @@ def plot_all_traces_png(Xc: np.ndarray, t: np.ndarray, out_path: str, title: str
 
     ax.set_title(title, fontsize=20, fontweight="bold", pad=10)
     ax.set_xlabel("Time (s)", fontsize=14)
-    ax.set_ylabel("Z-score", fontsize=14)
+    ax.set_ylabel("Signal", fontsize=14)
     ax.set_ylim(y0, y1)
     ax.grid(True, alpha=0.6)
 
@@ -314,7 +343,7 @@ def plot_avg_trace_png(Xc: np.ndarray, t: np.ndarray, out_path: str, title: str)
 
     ax.set_title(title, fontsize=20, fontweight="bold", pad=10)
     ax.set_xlabel("Time (s)", fontsize=14)
-    ax.set_ylabel("Z-score", fontsize=14)
+    ax.set_ylabel("Signal", fontsize=14)
     ax.set_ylim(y0, y1)
     ax.grid(True, alpha=0.6)
 
@@ -505,11 +534,19 @@ def create_new_run(
     df_raw = pd.read_excel(excel_path)
 
     X_full, t_full = extract_traces_from_excel(df_raw, dt=dt)
+    mu_global, sd_global = _compute_global_z_stats(X_full)
+
     Xw, tw, t_max_full, t_max_window = _apply_time_window(X_full, t_full, t_start, t_end)
 
-    metrics = _compute_window_metrics(Xw, tw, baseline_frac=baseline_frac, min_peaks=min_peaks)
+    metrics = _compute_window_metrics(
+        Xw, tw,
+        mu_global=mu_global,
+        sd_global=sd_global,
+        baseline_frac=baseline_frac,
+        min_peaks=min_peaks
+    )
 
-    active_mask, max_run_sec = _active_mask_from_metrics(
+    active_mask, duration_like_sec = _active_mask_from_metrics(
         metrics=metrics,
         activity_method=activity_method,
         z_thresh=z_thresh,
@@ -520,6 +557,8 @@ def create_new_run(
         Xw=Xw,
         dt=dt,
         min_above_sec=min_above_sec,
+        mu_global=mu_global,
+        sd_global=sd_global,
     )
 
     active_idx = np.where(active_mask)[0]
@@ -533,11 +572,13 @@ def create_new_run(
     cluster_excels = _export_cluster_excels(df_raw, clusters, clusters_dir, run_id) if clusters else {}
     cluster_plots = _write_cluster_plots(Xw, tw, clusters, plots_dir, run_id) if clusters else {}
 
+    # Keep backward-compatible column name max_run_sec, but it now means TOTAL time above z for z_duration.
     metrics_df = pd.DataFrame({
         "row_index": np.arange(len(df_raw)),
         "active": active_mask.astype(int),
         "max_z": metrics["max_z"],
-        "max_run_sec": max_run_sec.astype(float),
+        "max_run_sec": duration_like_sec.astype(float),      # backward compatible
+        "total_above_sec": duration_like_sec.astype(float),  # explicit (matches Excel)
         "auc": metrics["auc"],
         "mean_over_baseline": metrics["mean_over_baseline"],
         "prominence": metrics["prominence"],
@@ -565,6 +606,9 @@ def create_new_run(
         "baseline_frac": float(baseline_frac),
         "min_peaks": int(min_peaks),
 
+        "z_score_reference": "global_whole_recording",
+        "z_duration_definition": "total_time_above_threshold_sec",
+
         "active_idx": active_idx.tolist(),
         "clusters": clusters,
     })
@@ -578,7 +622,6 @@ def create_new_run(
         "t_start": float(t_start),
         "t_end": float(t_end),
 
-        # NEW: tell frontend what the slider max should be
         "t_max_full": float(t_max_full),
         "t_max_window": float(t_max_window),
         "T_full": int(X_full.shape[1]),
@@ -611,13 +654,6 @@ def create_new_run(
         },
         "notes": [],
     }
-
-    win_len = float(tw[-1] - tw[0]) if tw.size >= 2 else float(tw[-1]) if tw.size == 1 else 0.0
-    if (activity_method or "").strip().lower() == "z_duration" and float(min_above_sec) > win_len:
-        summary["notes"].append(
-            f"z_duration requires min_above_sec <= window_length. "
-            f"window_length≈{win_len:.2f}s, min_above_sec={float(min_above_sec):.2f}s → likely 0 active neurons."
-        )
 
     _save_json(os.path.join(out_dir, "summary.json"), summary)
     return summary
@@ -655,10 +691,19 @@ def subclassify_selected(
     df_raw = pd.read_excel(excel_path)
 
     X_full, t_full = extract_traces_from_excel(df_raw, dt=dt)
+    mu_global, sd_global = _compute_global_z_stats(X_full)
+
     Xw, tw, t_max_full, t_max_window = _apply_time_window(X_full, t_full, t_start, t_end)
 
-    metrics = _compute_window_metrics(Xw, tw, baseline_frac=baseline_frac, min_peaks=min_peaks)
-    active_mask, max_run_sec = _active_mask_from_metrics(
+    metrics = _compute_window_metrics(
+        Xw, tw,
+        mu_global=mu_global,
+        sd_global=sd_global,
+        baseline_frac=baseline_frac,
+        min_peaks=min_peaks
+    )
+
+    active_mask, duration_like_sec = _active_mask_from_metrics(
         metrics=metrics,
         activity_method=activity_method,
         z_thresh=z_thresh,
@@ -669,7 +714,10 @@ def subclassify_selected(
         Xw=Xw,
         dt=dt,
         min_above_sec=min_above_sec,
+        mu_global=mu_global,
+        sd_global=sd_global,
     )
+
     active_idx = np.where(active_mask)[0]
 
     clusters_dir = os.path.join(out_dir, "clusters")
@@ -693,7 +741,8 @@ def subclassify_selected(
         "row_index": np.arange(len(df_raw)),
         "active": active_mask.astype(int),
         "max_z": metrics["max_z"],
-        "max_run_sec": max_run_sec.astype(float),
+        "max_run_sec": duration_like_sec.astype(float),      # backward compatible
+        "total_above_sec": duration_like_sec.astype(float),  # explicit
         "auc": metrics["auc"],
         "mean_over_baseline": metrics["mean_over_baseline"],
         "prominence": metrics["prominence"],
@@ -721,6 +770,9 @@ def subclassify_selected(
         "baseline_frac": float(baseline_frac),
         "min_peaks": int(min_peaks),
 
+        "z_score_reference": "global_whole_recording",
+        "z_duration_definition": "total_time_above_threshold_sec",
+
         "active_idx": active_idx.tolist(),
         "clusters": clusters,
     })
@@ -734,7 +786,6 @@ def subclassify_selected(
         "t_start": float(t_start),
         "t_end": float(t_end),
 
-        # NEW: dynamic time info for frontend slider max
         "t_max_full": float(t_max_full),
         "t_max_window": float(t_max_window),
         "T_full": int(X_full.shape[1]),

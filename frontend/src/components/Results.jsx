@@ -11,11 +11,15 @@ function explainResult(result) {
   s.push(`We labeled ${counts.active} as active and ${counts.non_active} as non-active before clustering.`);
 
   if (m === "z_duration") {
+    s.push(`Z-scores use the entire recording as the reference (global μ/σ).`);
     s.push(
-      `Rule: z(t) ≥ ${Number(thresholds?.z_thresh ?? 0).toFixed(2)} continuously for ≥ ${Number(
+      `Rule: total time with z(t) ≥ ${Number(thresholds?.z_thresh ?? 0).toFixed(2)} is ≥ ${Number(
         thresholds?.min_above_sec ?? 0
-      ).toFixed(1)}s.`
+      ).toFixed(1)}s (not necessarily continuous).`
     );
+  } else if (m === "max_z") {
+    s.push(`Z-scores use the entire recording as the reference (global μ/σ).`);
+    s.push(`Rule: max(z(t)) ≥ ${Number(thresholds?.z_thresh ?? 0).toFixed(2)} within the window.`);
   } else {
     s.push(`Method: ${activity_method}.`);
   }

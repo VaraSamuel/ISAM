@@ -1,3 +1,4 @@
+// frontend/src/api.js
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 export function artifactUrl(path) {
@@ -30,7 +31,9 @@ export async function createRun(file, k, opts = {}) {
 
   fd.append("activity_method", String(opts.activity_method ?? "z_duration"));
   fd.append("z_thresh", String(opts.z_thresh ?? 2.5));
-  fd.append("min_above_sec", String(opts.min_above_sec ?? 10.0));
+
+  // ✅ CHANGE: default to 5.0 (matches Excel expectation)
+  fd.append("min_above_sec", String(opts.min_above_sec ?? 5.0));
 
   fd.append("auc_thresh", String(opts.auc_thresh ?? 0.0));
   fd.append("mean_thresh", String(opts.mean_thresh ?? 0.0));
@@ -54,7 +57,9 @@ export async function subclassifyMany(run_id, selected_clusters, k, opts = {}) {
 
     activity_method: opts.activity_method ?? "z_duration",
     z_thresh: opts.z_thresh ?? 2.5,
-    min_above_sec: opts.min_above_sec ?? 10.0,
+
+    // ✅ CHANGE: default to 5.0 (matches Excel expectation)
+    min_above_sec: opts.min_above_sec ?? 5.0,
 
     auc_thresh: opts.auc_thresh ?? 0.0,
     mean_thresh: opts.mean_thresh ?? 0.0,
