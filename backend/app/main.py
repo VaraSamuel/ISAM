@@ -10,6 +10,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
 from .pipeline import create_new_run, subclassify_selected
 
@@ -110,7 +111,16 @@ async def runs(
     with open(excel_path, "wb") as f:
         shutil.copyfileobj(upload.file, f)
 
-    return create_new_run(
+    # create_new_run is a slow, synchronous, CPU-bound function (pandas +
+    # scipy + matplotlib, ~20-30s for a real file). Calling it directly here
+    # would block this process's single asyncio event loop for that whole
+    # duration — with WEB_CONCURRENCY=1, that means every other request,
+    # including /health, goes unanswered until it finishes, which looks
+    # exactly like a crash from the browser's side ("Failed to fetch").
+    # run_in_threadpool runs it on a worker thread instead, so the event
+    # loop stays free to serve other requests concurrently.
+    return await run_in_threadpool(
+        create_new_run,
         excel_path=excel_path,
         out_dir=out_dir,
         run_id=run_id,
@@ -139,7 +149,9 @@ async def subclassify(req: SubclassifyRequest):
     if not os.path.isdir(out_dir):
         raise HTTPException(status_code=404, detail=f"Run not found: {req.run_id}")
 
-    return subclassify_selected(
+    # Same reasoning as /runs above — offload the blocking computation.
+    return await run_in_threadpool(
+        subclassify_selected,
         out_dir=out_dir,
         run_id=req.run_id,
         selected_clusters=req.selected_clusters,
